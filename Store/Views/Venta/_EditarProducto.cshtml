@@ -1,0 +1,48 @@
+﻿@model Core.ViewModels.VentaDetalleViewModel
+
+<div class="modal fade" id="modalEditar" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <p class="modal-title" style="font-size:large; font-weight:bold;">Editar Producto</p>
+                <a href="#" class="close" data-dismiss="modal">&times;</a>
+            </div>
+            <div id="bodyModalEditar" class="modal-body">
+                <div class="row ml-2 mr-2">
+                    <div class="col-md-12">
+                        <form method="post" id="frmEditAsync">
+
+                            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+                            @*Guardamos en elementos hidden el id *@
+                            <input type="hidden" id="Index"/>
+
+                            <div class="form-group">
+                                @Html.Label("", "Producto", htmlAttributes: new { @class = "control-label" })
+                                @Html.DropDownListFor(model => model.ProductoId, null, "[Seleccione un Producto]", htmlAttributes: new { @class = "form-control" })
+                                @Html.ValidationMessageFor(model => model.ProductoId, "", new { @class = "text-danger" })
+                            </div>
+                            <div class="form-group">
+                                <label asp-for="Cantidad" class="control-label"></label>
+                                <input asp-for="Cantidad" class="form-control" min="1" />
+                                <span asp-validation-for="Cantidad" class="text-danger"></span>
+                            </div>
+                            <div class="form-group">
+                                <label asp-for="Precio" class="control-label"></label>
+                                <input asp-for="Precio" class="form-control" />
+                                <span asp-validation-for="Precio" class="text-danger"></span>
+                            </div>
+
+                            <div class="form-group row">
+                                <div class="col-sm-2"></div>
+                                <div class="col-sm-10 text-right">
+                                    <input type="button" value="Guardar" onclick="EditProducto()" class="btn btn-primary" />
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,373 @@
+﻿@model Core.ViewModels.VentaViewModel
+@{
+    ViewData["Title"] = "Nueva Venta";
+}
+
+
+<h3>@ViewBag.MensajeError</h3>
+
+@using (Html.BeginForm("Create", "Venta", FormMethod.Post, new { id = "frmVenta" }))
+{
+    @Html.AntiForgeryToken()
+
+<div class="form-horizontal">
+    <h5>Nueva Venta</h5>
+    <hr />
+    @Html.ValidationSummary(true, "", new { @class = "text-danger" })
+    <br />
+
+    <div class="form-group">
+        @Html.Label("", "Código", htmlAttributes: new { @class = "control-label col-md-2" })
+        <div class="col-md-6">
+            @Html.EditorFor(model => model.Codigo, new { htmlAttributes = new { @class = "form-control", maxlength = "5" } })
+            @Html.ValidationMessageFor(model => model.Codigo, "", new { @class = "text-danger" })
+        </div>
+    </div>
+
+    <div class="form-group">
+        @Html.LabelFor(model => model.Cliente, htmlAttributes: new { @class = "control-label col-md-2" })
+        <div class="col-md-6">
+            @Html.EditorFor(model => model.Cliente, new { htmlAttributes = new { @class = "form-control", maxlength = "100" } })
+            @Html.ValidationMessageFor(model => model.Cliente, "", new { @class = "text-danger" })
+        </div>
+    </div>
+
+    <div class="form-group">
+        @Html.LabelFor(model => model.Fecha, htmlAttributes: new { @class = "control-label col-md-2" })
+        <div class="col-md-6">
+            <input type="text" class="form-control" value="@($"{(DateTime.Today):dd/MM/yyyy}")" readonly />
+        </div>
+    </div>
+
+    <br />
+
+    <div class="form-group">
+        <div class="col-md-6">
+            <input type="button" value="Agregar Producto" onclick="ModalAddProducto()" class="btn btn-primary btn-sm" />
+            <input type="button" value="Guardar Venta" onclick="ValidarVenta()" class="btn btn-primary btn-sm" />
+        </div>
+    </div>
+    <br />
+    <h5>Detalle de la Venta</h5>
+
+
+    @if (Model.Detalle != null)
+    {
+        var productos = Model.Detalle;
+
+        <table id="tablaListado" class="table table-striped table-bordered">
+            <thead>
+                <tr>
+                    <th>
+                        Descripción
+                    </th>
+                    <th>
+                        Cantidad
+                    </th>
+                    <th>
+                        Precio (S/.)
+                    </th>
+                    <th>
+                        Total
+                    </th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="contentDetalle">
+
+                @foreach (Core.ViewModels.VentaDetalleViewModel item in productos)
+                {
+                    var i = 0;
+
+                    <tr id="row_@i">
+                        <td>
+                            @item.ProductoDescripcion
+                        </td>
+                        <td>
+                            @item.Cantidad
+                        </td>
+                        <td>
+                            @($"{item.Precio:#,###.00}")
+                        </td>
+                        <td>
+                            @($"{item.Total:#,###.00}")
+                        </td>
+                        <td>
+                            <a title="Editar" style="cursor: pointer" data-id="@i" class="btn btn-sm btn-success popup">Editar</a>
+                            <a title="Eliminar" href="#" class="btn btn-sm btn-danger" onclick="ConfirmarEliminacion(@i)">Eliminar</a>
+                        </td>
+                    </tr>
+
+                    @(i++)
+                }
+
+            </tbody>
+        </table>
+    }
+
+    <div id="alerta" class="alert alert-danger alert-dismissible collapse" style="width:100%;" role="alert">
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+        </button>
+        <span id="mensaje"></span>
+    </div>
+
+
+    <input type="hidden" id="hdnIndiceFila" />
+</div>
+}
+
+<!-- #region Modal Eliminar Producto -->
+<div class="modal fade" id="modalEliminar" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false">
+    <div class="modal-dialog modal-sm" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <p class="modal-title" style="font-size:large; font-weight:bold;">Eliminar Producto</p>
+                <a href="#" class="close" data-dismiss="modal">&times;</a>
+            </div>
+            <div class="modal-body">
+                <h6>¿Estás seguro que deseas eliminar este producto?</h6>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger btn-sm" onclick="DeleteProducto();">Eliminar</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- #endregion -->
+<!-- #region Modal Producto -->
+<div id="modalPopup"></div>
+<!-- #endregion -->
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+
+    <script type="text/javascript">
+
+        function ValidarVenta() {
+            if (!$("#frmVenta").valid()) {
+                return false;
+            }
+
+            let body = $("#contentDetalle");
+
+            let cantidadFilas = body.find("tr").length;
+
+            if (cantidadFilas == 0) {
+                $("#mensaje").html("<strong>Debe agregar productos a la venta</strong>");
+                $("#alerta").show("fade");
+                setTimeout(function () {
+                    $("#alerta").hide("fade");
+                }, 2000);
+
+                return false;
+            }
+
+            $("#frmVenta").submit();
+        }
+
+        function ModalAddProducto() {
+            event.preventDefault();
+
+            let url = "@Url.Action("AddProducto", "Venta")";
+
+            let contenedor = $("#modalPopup");
+
+            //Cargamos la vista parcial en el contenedor
+            contenedor.load(url, function () {
+                //Configuramos que el formulario de adición tenga validación
+                let form = $("#frmAddAsync");
+                form.removeData("validator");
+                form.removeData("unobtrusiveValidation");
+                $.validator.unobtrusive.parse(form);
+                //Mostramos el modal
+                $("#modalAgregar").modal("show");
+            });
+        }
+
+        function AddProducto() {
+            if (!$("#frmAddAsync").valid()) {
+                return false;
+            }
+
+            let form_data = $("#frmAddAsync").serializeArray();
+            let prod_desc = $("#ProductoId :selected").text();
+            let total = parseFloat(form_data[1].value) * parseFloat(form_data[2].value);
+
+            $("#modalAgregar").modal('hide');
+
+            let body = $("#contentDetalle");
+
+            let indiceFila = body.find("tr").length;
+
+            let fila = "<tr id='row_" + indiceFila + "'>" +
+            "<td><span>" + prod_desc + "</span>" +
+                "<input type='hidden' name='Detalle[" + indiceFila + "].ProductoDescripcion' id='Detalle[" + indiceFila + "].ProductoDescripcion' value='" + prod_desc + "' />" +
+                "<input type='hidden' name='Detalle[" + indiceFila + "].ProductoId' id='Detalle[" + indiceFila + "].ProductoId' value='" + form_data[0].value + "' />" +
+            "</td>" +
+            "<td><span>" + form_data[1].value + "</span>" +
+                "<input type='hidden' name='Detalle[" + indiceFila + "].Cantidad' id='Detalle[" + indiceFila + "].Cantidad' value='" + form_data[1].value + "' />" +
+            "</td>" +
+            "<td><span>" + form_data[2].value + "</span>" +
+                "<input type='hidden' name='Detalle[" + indiceFila + "].Precio' id='Detalle[" + indiceFila + "].Precio' value='" + form_data[2].value + "' />" +
+            "</td>" +
+            "<td><span>" + total + "</span>" +
+                "<input type='hidden' name='Detalle[" + indiceFila + "].Total' id='Detalle[" + indiceFila + "].Total' value='" + total + "' />" +
+            "</td>" +
+            "<td>" +
+                "<a title='Editar' style='cursor: pointer' data-id='" + indiceFila + "' class='btn btn-sm btn-success popup'>Editar</a> | " +
+                "<a title='Eliminar' href='#' class='btn btn-sm btn-danger' onclick='ConfirmarEliminacion(" + indiceFila + ")'>Eliminar</a>" +
+            "</td>" +
+            "</tr>";
+
+            body.append(fila);
+
+            $("#mensaje").html("<strong>Producto Agregado</strong>");
+            $("#alerta").show("fade");
+            setTimeout(function () {
+                $("#alerta").hide("fade");
+            }, 2000);
+        }
+
+        $(document).ready(function () { 
+            $("#tablaListado").on("click", "a.popup", function (e) {
+                e.preventDefault();
+
+                let url = "@Url.Action("EditProducto", "Venta")";
+
+                let indiceFila = $(this).attr("data-id");
+
+                let celdas = $("#row_" + indiceFila).find("td");
+
+                let hdn = celdas.filter(":eq(0)").find('[name="Detalle[' + indiceFila + '].ProductoId"]');
+                let productId = hdn.val();
+                let cantidad = celdas.filter(":eq(1)").find('span').text();
+                let precio = celdas.filter(":eq(2)").find('span').text();
+
+                let contenedor = $("#modalPopup");
+                //Cargamos la vista parcial en el contenedor
+                contenedor.load(url, function () {
+                    //Configuramos que el formulario de edición tenga validación
+                    var form = $("#frmEditAsync");
+                    form.removeData("validator");
+                    form.removeData("unobtrusiveValidation");
+                    $.validator.unobtrusive.parse(form);
+
+                    $("#Index").val(indiceFila);
+                    $("#ProductoId").val(productId);
+                    $("#Cantidad").val(cantidad);
+                    $("#Precio").val(precio);
+
+                    //Mostramos el modal
+                    $("#modalEditar").modal("show");
+                });
+            });
+        });
+
+        function EditProducto() {
+            if (!$("#frmEditAsync").valid()) {
+                return false;
+            }
+
+            let form_data = $("#frmEditAsync").serializeArray();
+            let indiceFila = $("#Index").val();
+            let fila = $("#row_" + $("#Index").val());
+            let celdas = fila.find("td");
+
+            let hdnProductId = celdas.filter(":eq(0)").find('[name="Detalle[' + indiceFila + '].ProductoId"]');
+            let hdnProductoDescripcion = celdas.filter(":eq(0)").find('[name="Detalle[' + indiceFila + '].ProductoDescripcion"]');
+            hdnProductId.val(form_data[0].value);
+            hdnProductoDescripcion.val($("#ProductoId :selected").text());
+            celdas.filter(":eq(0)").find('span').text($("#ProductoId :selected").text());
+
+            let hdnCantidad = celdas.filter(":eq(1)").find('[name="Detalle[' + indiceFila + '].Cantidad"]');
+            hdnCantidad.val(form_data[1].value);
+            celdas.filter(":eq(1)").find('span').text(form_data[1].value);
+
+            let hdnPrecio = celdas.filter(":eq(2)").find('[name="Detalle[' + indiceFila + '].Precio"]');
+            hdnPrecio.val(form_data[2].value);
+            celdas.filter(":eq(2)").find('span').text(form_data[2].value);
+
+            let hdnTotal = celdas.filter(":eq(3)").find('[name="Detalle[' + indiceFila + '].Total"]');
+            let total = parseFloat(form_data[1].value) * parseFloat(form_data[2].value);
+            hdnTotal.val(total);
+            celdas.filter(":eq(3)").find('span').text(total);
+
+            $("#modalEditar").modal('hide');
+
+            $("#mensaje").html("<strong>Producto actualizado</strong>");
+            $("#alerta").show("fade");
+            setTimeout(function () {
+                $("#alerta").hide("fade");
+            }, 2000);
+        }
+
+        function ConfirmarEliminacion(indiceFila) {
+            event.preventDefault();
+            $("#hdnIndiceFila").val(indiceFila);
+            $("#modalEliminar").modal('show');
+        }
+
+        function DeleteProducto() {
+            let indexRow = $("#hdnIndiceFila").val();
+            $("#row_" + indexRow).remove();
+
+            let body = $("#contentDetalle");
+
+            let cantidadFilas = body.find("tr").length;
+            console.log(cantidadFilas);
+
+            let fila = '';
+
+            for (let indiceFila = 0; indiceFila < cantidadFilas; indiceFila++) {
+                let row = body.find("tr").eq(indiceFila);
+                console.log(row);
+                let celdas = row.find("td");
+
+                let hdn1 = celdas.filter(":eq(0)").find(':input').eq(1);
+                let productoId = hdn1.val();
+                let hdn2 = celdas.filter(":eq(0)").find(':input').eq(0);
+                let productoDescripcion = hdn2.val();
+                let cantidad = celdas.filter(":eq(1)").find('span').text();
+                let precio = celdas.filter(":eq(2)").find('span').text();
+                let total = parseFloat(cantidad) * parseFloat(precio);
+
+                fila += "<tr id='row_" + indiceFila + "'>" +
+                    "<td><span>" + productoDescripcion + "</span>" +
+                    "<input type='hidden' name='Detalle[" + indiceFila + "].ProductoDescripcion' id='Detalle[" + indiceFila + "].ProductoDescripcion' value='" + productoDescripcion + "' />" +
+                    "<input type='hidden' name='Detalle[" + indiceFila + "].ProductoId' id='Detalle[" + indiceFila + "].ProductoId' value='" + productoId + "' />" +
+                    "</td>" +
+                    "<td><span>" + cantidad + "</span>" +
+                    "<input type='hidden' name='Detalle[" + indiceFila + "].Cantidad' id='Detalle[" + indiceFila + "].Cantidad' value='" + cantidad + "' />" +
+                    "</td>" +
+                    "<td><span>" + precio + "</span>" +
+                    "<input type='hidden' name='Detalle[" + indiceFila + "].Precio' id='Detalle[" + indiceFila + "].Precio' value='" + precio + "' />" +
+                    "</td>" +
+                    "<td><span>" + total + "</span>" +
+                    "<input type='hidden' name='Detalle[" + indiceFila + "].Total' id='Detalle[" + indiceFila + "].Total' value='" + total + "' />" +
+                    "</td>" +
+                    "<td>" +
+                    "<a title='Editar' style='cursor: pointer' data-id='" + indiceFila + "' class='btn btn-sm btn-success popup'>Editar</a> | " +
+                    "<a title='Eliminar' href='#' class='btn btn-sm btn-danger' onclick='ConfirmarEliminacion(" + indiceFila + ")'>Eliminar</a>" +
+                    "</td>" +
+                    "</tr>";
+            }
+
+            body.html(fila);
+            
+
+            $("#modalEliminar").modal('hide');
+
+            $("#mensaje").html("<strong>Producto eliminado</strong>");
+            $("#alerta").show("fade");
+            setTimeout(function () {
+                $("#alerta").hide("fade");
+            }, 2000);
+
+        }
+
+    </script>
+}
+
+
